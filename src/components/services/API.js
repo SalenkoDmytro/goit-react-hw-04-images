@@ -11,5 +11,6 @@ export default async function getImages(searchQuery, page = 1) {
     page: `${page}`,
   });
   const url = `${BASE_URL}?&${searchParams}`;
-  return await axios.get(url);
+  const response = await axios.get(url);
+  return response.data;
 }
