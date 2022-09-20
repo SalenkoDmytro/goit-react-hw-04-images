@@ -1,4 +1,4 @@
-import { Component } from 'react';
+import { useState, useEffect } from 'react';
 import Notiflix from 'notiflix';
 import s from './App.module.css';
 import Btn from './Btn';
@@ -7,57 +7,53 @@ import Loader from './Loader';
 import Searchbar from './Searchbar';
 import getImages from './services';
 
-export class App extends Component {
-  state = {
-    searchQuery: null,
-    images: [],
-    page: 1,
-    totalHits: 0,
-    isLoading: false,
-  };
+export const App = () => {
+  const [searchQuery, setSearchQuery] = useState(null);
+  const [images, setImages] = useState([]);
+  const [page, setPage] = useState(1);
+  const [totalHits, setTotalHits] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isShown, setIsShown] = useState(false);
 
-  componentDidUpdate(_, prevState) {
-    const { searchQuery, page } = this.state;
-    if (prevState.searchQuery !== searchQuery || prevState.page !== page) {
-      this.setState({ isLoading: true });
-      this.getData();
+  useEffect(() => {
+    const getData = async () => {
+      try {
+        const response = await getImages(searchQuery, page);
+        if (!response.totalHits)
+          Notiflix.Notify.failure('No results, try again');
+        setImages(prevImages => [...prevImages, ...response.hits]);
+        setTotalHits(response.totalHits);
+        setIsLoading(false);
+      } catch (error) {
+        Notiflix.Notify.failure(error.message);
+      }
+    };
+
+    if (isShown) {
+      setIsLoading(true);
+      getData();
     }
-  }
+  }, [searchQuery, page, isShown]);
 
-  onFormSubmit = async searchQuery => {
-    this.setState({ searchQuery, page: 1, images: [] });
+  const onFormSubmit = async search => {
+    setSearchQuery(search);
+    setPage(1);
+    setImages([]);
+    setIsShown(true);
   };
 
-  handleClick = async () => {
-    this.setState(prevState => ({ page: prevState.page + 1 }));
+  const handleClick = async () => {
+    setPage(prevPage => prevPage + 1);
   };
 
-  async getData() {
-    const { searchQuery, page } = this.state;
-    try {
-      const { hits, totalHits } = await getImages(searchQuery, page);
-      if (!totalHits) Notiflix.Notify.failure('No results, try again');
-      this.setState(prevState => ({
-        images: [...prevState.images, ...hits],
-        totalHits,
-        isLoading: false,
-      }));
-    } catch (error) {
-      Notiflix.Notify.failure(error.message);
-    }
-  }
-
-  render() {
-    const { images, totalHits, isLoading } = this.state;
-    return (
-      <div className={s.container}>
-        <Searchbar onSubmit={this.onFormSubmit} />
-        <ImageGallery data={images} />
-        {!isLoading && images.length > 0 && images.length < totalHits && (
-          <Btn onClick={this.handleClick} />
-        )}
-        {isLoading && <Loader />}
-      </div>
-    );
-  }
-}
+  return (
+    <div className={s.container}>
+      <Searchbar onSubmit={onFormSubmit} />
+      {isShown && <ImageGallery data={images} />}
+      {!isLoading && images.length > 0 && images.length < totalHits && (
+        <Btn onClick={handleClick} />
+      )}
+      {isLoading && <Loader />}
+    </div>
+  );
+};
